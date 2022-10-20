@@ -1,0 +1,177 @@
+name: "Build Sylius Plugin Test Application"
+description: "Builds a Sylius plugin's test application with the given PHP, Sylius, Symfony, MySQL versions."
+
+inputs:
+    php-version:
+        required: true
+        description: "The PHP version to use."
+    php-extensions:
+        required: false
+        description: "The PHP extensions to install."
+        default: "intl"
+    php-tools:
+        required: false
+        description: "The PHP tools to install."
+        default: "symfony"
+    sylius-version:
+        required: true
+        description: "The Sylius version to use."
+    symfony-version:
+        required: true
+        description: "The Symfony version to use."
+    mysql-version:
+        required: true
+        description: "The MySQL version to use."
+    node-version:
+        required: false
+        description: "The Node.js version to use."
+        default: "16.x"
+    environment:
+        required: false
+        description: "The environment to use."
+        default: "test"
+    working-directory:
+        required: false
+        description: "The working directory to use."
+        default: "."
+
+runs:
+    using: "composite"
+
+    steps:
+        -   uses: actions/checkout@v2
+
+        -   name: Setup PHP
+            uses: shivammathur/setup-php@v2
+            with:
+                php-version: "${{ inputs.php-version }}"
+                extensions: "${{ inputs.php-extensions }}"
+                tools: "${{ inputs.php-tools }}"
+                coverage: none
+
+        -   name: Setup Node
+            uses: actions/setup-node@v1
+            with:
+                node-version: "${{ inputs.node-version }}"
+
+        -   name: Shutdown default MySQL
+            run: sudo service mysql stop
+            shell: bash
+
+        -   name: Setup MySQL
+            uses: mirromutth/mysql-action@v1.1
+            with:
+                mysql version: "${{ inputs.mysql-version }}"
+                mysql root password: "root"
+
+        -   name: Output PHP version for Symfony CLI
+            run: php -v | head -n 1 | awk '{ print $2 }' > .php-version
+            shell: bash
+
+        -   name: Install certificates
+            run: symfony server:ca:install
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Run Chrome Headless
+            run: google-chrome-stable --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --disable-extensions --no-sandbox --enable-features=Metal --headless --remote-debugging-port=9222 --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Run webserver
+            run: (cd tests/Application && symfony server:start --port=8080 --dir=public --daemon)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Get Composer cache directory
+            id: composer-cache
+            run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Cache Composer
+            uses: actions/cache@v2
+            with:
+                path: ${{ steps.composer-cache.outputs.dir }}
+                key: ${{ runner.os }}-php-${{ inputs.php-version }}-composer-${{ hashFiles('**/composer.json **/composer.lock') }}
+                restore-keys: |
+                    ${{ runner.os }}-php-${{ inputs.php-version }}-composer-
+
+        -   name: Restrict Symfony version
+            if: inputs.symfony-version != ''
+            run: |
+                composer global config --no-plugins allow-plugins.symfony/flex true
+                composer global require --no-progress --no-scripts --no-plugins "symfony/flex:^1.10"
+                composer config extra.symfony.require "${{ inputs.symfony-version }}"
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Restrict Sylius version
+            if: inputs.sylius-version != ''
+            run: composer require "sylius/sylius:${{ inputs.sylius-version }}" --no-update --no-scripts --no-interaction
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Install PHP dependencies
+            run: composer install --no-interaction
+            env:
+                COMPOSER_ROOT_VERSION: dev-main
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Get Yarn cache directory
+            id: yarn-cache
+            run: echo "::set-output name=dir::$(yarn cache dir)"
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Cache Yarn
+            uses: actions/cache@v2
+            with:
+                path: ${{ steps.yarn-cache.outputs.dir }}
+                key: ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-${{ hashFiles('**/package.json **/yarn.lock') }}
+                restore-keys: |
+                    ${{ runner.os }}-node-${{ inputs.node-version }}-yarn-
+
+        -   name: Install JS dependencies
+            run: (cd tests/Application && yarn install)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Prepare test application database
+            run: |
+                (cd tests/Application && bin/console doctrine:database:create -vvv)
+                (cd tests/Application && bin/console doctrine:migrations:migrate -n -vvv)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Prepare test application assets
+            run: |
+                (cd tests/Application && bin/console assets:install public -vvv)
+                (cd tests/Application && yarn build)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Prepare test application cache
+            run: (cd tests/Application && bin/console cache:warmup -vvv)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Load fixtures in test application
+            run: (cd tests/Application && bin/console sylius:fixtures:load -n)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Validate composer.json
+            run: composer validate --ansi --strict
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Validate database schema
+            run: (cd tests/Application && bin/console doctrine:schema:validate)
+            shell: bash
+            working-directory: "${{ inputs.working-directory }}"
+
+branding:
+    icon: activity
+    color: green
