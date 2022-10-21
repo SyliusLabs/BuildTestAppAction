@@ -184,12 +184,6 @@ runs:
             working-directory: "${{ inputs.working-directory }}"
 
         -   name: Load fixtures in test application
-            if: ${{ inputs.plugin-build == 'yes' }}
-            run: (cd tests/Application && bin/console sylius:fixtures:load -n)
-            shell: bash
-            working-directory: "${{ inputs.working-directory }}"
-
-        -   name: Load fixtures in test application
             if: ${{ inputs.plugin-build == 'no' }}
             run: bin/console sylius:fixtures:load -n
             shell: bash
