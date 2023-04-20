@@ -2,35 +2,77 @@ name: "Build Sylius Test Application"
 description: "Builds a Sylius plugin's test application with the given PHP, Sylius, Symfony, MySQL versions."
 
 inputs:
-    sylius-version:
+    # General
+    build_type:
         required: true
-        description: "The Sylius version to use."
-    integration:
+        description: "A build type to be used"
+        default: "app" # available options are "sylius" (to tests Sylius itself), "app" (to test Sylius-based application, e.g. Sylius-Standard), "plugin" (to test Sylius plugin)
+
+    cache_key:
         required: false
-        description: "The Sylius integration to use (requires no-response-mate/composer-integration-plugin composer package installed)"
-        default: ""
-    symfony-version:
-        required: true
-        description: "The Symfony version to use."
-    mysql-version:
-        required: true
-        description: "The MySQL version to use."
-    node-version:
+        description: "A cache key to be used"
+        default: "" # If empty no cache is used
+
+    cache_restore_key:
         required: false
-        description: "The Node.js version to use."
-        default: "16.x"
-    environment:
+        description: "A cache restore key to be used"
+        default: "" # If empty no cache is used
+
+    e2e:
         required: false
-        description: "The environment to use."
-        default: "test"
-    working-directory:
-        required: false
-        description: "The working directory to use."
-        default: "."
-    plugin-build:
-        required: false
-        description: "Whether the app or the plugins is being built."
+        description: "Whether prepare the test application for e2e tests"
         default: "no"
+    e2e_js:
+        required: false
+        description: "Whether prepare the test application for e2e tests with JS"
+        default: "no"
+
+    # Database
+    database:
+        required: true
+        description: "A database engine to be used"
+        default: "mysql" # available options are "mysql", "mariadb", "postgresql"
+    database_version:
+        required: true
+        description: "A database version to be used"
+
+    # PHP
+    php_version:
+        required: true
+        description: "A PHP version to be used"
+    php_extensions:
+        required: true
+        description: "PHP extensions to be installed"
+        default: "intl, gd, opcache, mysql, pdo_mysql, pgsql, pdo_pgsql"
+    php_tools:
+        required: true
+        description: "PHP tools to be installed"
+        default: "symfony"
+    php_coverage:
+        required: false
+        description: "PHP coverage"
+        default: "none"
+
+    # Symfony
+    symfony_version:
+        required: true
+        description: "A Symfony version to be used"
+
+    # Sylius
+    sylius_version:
+        required: false
+        description: "A Sylius version to be used"
+        default: "" # If empty no Sylius restriction is applied, also it allows to use this action while testing Sylius itself
+    sylius_integration:
+        required: false
+        description: "A Sylius integration to be used"
+        default: "" # If empty no Sylius integration is applied
+
+    # Node.js (only when e2e_js is set to "yes")
+    node_version:
+        required: false
+        description: "A Node.js version to be used"
+        default: "16.x"
 
 runs:
     using: "composite"
@@ -40,115 +82,189 @@ runs:
             name: Set application_dir environment variable
             shell: bash
             env:
-                IS_PLUGIN_BUILD: ${{ inputs.plugin-build }}
+                BUILD_TYPE: ${{ inputs.build_type }}
             run: |
-                if [ "$IS_PLUGIN_BUILD" = "yes" ]; then
+                if [ "$BUILD_TYPE" = "plugin" ]; then
                     echo "application_dir=tests/Application" >> $GITHUB_ENV
                 else
                     echo "application_dir=." >> $GITHUB_ENV
                 fi
 
-        -   name: Setup Node
-            uses: actions/setup-node@v1
-            with:
-                node-version: "${{ inputs.node-version }}"
+        #####################################################################
+        # Set up a database                                                 #
+        #####################################################################
 
         -   name: Shutdown default MySQL
             run: sudo service mysql stop
             shell: bash
 
         -   name: Setup MySQL
+            if: inputs.database == 'mysql'
             uses: mirromutth/mysql-action@v1.1
             with:
-                mysql version: "${{ inputs.mysql-version }}"
+                mysql version: "${{ inputs.database_version }}"
                 mysql root password: "root"
+
+        -   name: Setup MariaDB
+            if: inputs.database == 'mariadb'
+            uses: getong/mariadb-action@v1.1
+            with:
+                mariadb version: "${{ inputs.database_version }}"
+                mysql root password: "root"
+
+        -   name: Setup PostgreSQL
+            if: inputs.database == 'postgresql'
+            uses: harmon758/postgresql-action@v1
+            with:
+                postgresql version: "${{ inputs.database_version }}"
+                postgresql password: "postgres"
+
+        #####################################################################
+        # Set up PHP & Symfony & Sylius                                     #
+        #####################################################################
+
+        -   name: Setup PHP
+            uses: shivammathur/setup-php@v2
+            with:
+                php-version: "${{ inputs.php_version }}"
+                extensions: "${{ inputs.php_extensions }}"
+                tools: "${{ inputs.php_tools }}"
+                coverage: "${{ inputs.php_coverage }}"
 
         -   name: Output PHP version for Symfony CLI
             run: php -v | head -n 1 | awk '{ print $2 }' > .php-version
             shell: bash
-            working-directory: "${{ inputs.working-directory }}"
 
         -   name: Install certificates
             run: symfony server:ca:install
             shell: bash
-            working-directory: "${{ inputs.working-directory }}"
-
-        -   name: Run Chrome Headless
-            run: google-chrome-stable --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --disable-extensions --no-sandbox --enable-features=Metal --headless --remote-debugging-port=9222 --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
-            shell: bash
-            working-directory: "${{ inputs.working-directory }}"
-
-        -   name: Run webserver
-            run: symfony server:start --port=8080 --dir=${{ env.application_dir }}/public --daemon
-            shell: bash
-            working-directory: "${{ inputs.working-directory }}"
 
         -   name: Restrict Symfony version
-            if: inputs.symfony-version != ''
             run: |
                 composer global config --no-plugins allow-plugins.symfony/flex true
-                composer global require --no-progress --no-scripts --no-plugins "symfony/flex:^1.10"
-                composer config extra.symfony.require "${{ inputs.symfony-version }}"
+                composer global require --no-progress --no-scripts --no-plugins "symfony/flex:^1.17 || ^2.0"
+                composer config extra.symfony.require "${{ inputs.symfony_version }}"
             shell: bash
-            working-directory: "${{ inputs.working-directory }}"
 
         -   name: Restrict Sylius version
-            if: inputs.sylius-version != ''
-            run: composer require "sylius/sylius:${{ inputs.sylius-version }}" --no-update --no-scripts --no-interaction
+            if: inputs.sylius_version != '' && inputs.build_type != 'sylius'
+            run: composer require "sylius/sylius:${{ inputs.sylius_version }}" --no-update --no-scripts --no-interaction
             shell: bash
-            working-directory: "${{ inputs.working-directory }}"
+
+        -   name: Get Composer cache directory
+            id: composer-cache
+            run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+            shell: bash
+
+        -   name: "Restore dependencies"
+            if: inputs.cache_key != ''
+            uses: actions/cache@v3
+            with:
+                path: ${{ steps.composer-cache.outputs.dir }}
+                key: ${{ inputs.cache_key }}
+                restore-keys: |
+                    ${{ inputs.cache_restore_key }}
 
         -   name: Install PHP dependencies
             run: composer install --no-interaction
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
-            working-directory: "${{ inputs.working-directory }}"
 
         -   name: Install Sylius integration
-            if: inputs.integration != ''
+            if: inputs.integration != '' && inputs.build_type != 'sylius'
             run: composer integration ${{ inputs.integration }}
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
+
+        #####################################################################
+        # Prepare for end-to-end tests                                      #
+        #####################################################################
+
+        -   uses: browser-actions/setup-chrome@latest
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            with:
+                chrome-version: latest
+
+        -   name: Run Chrome Headless
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            run: |
+                export DISPLAY=:99
+                chrome --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --remote-debugging-port=9222 --disable-extensions --no-sandbox --enable-features=Metal --headless --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
+            shell: bash
             working-directory: "${{ inputs.working-directory }}"
 
+        -   name: Run webserver
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'no'
+            run: symfony server:start --port=8080 --dir=${{ env.application_dir }}/public --daemon
+            shell: bash
+
+        -   name: Configure Encore for non-JS end-to-end tests
+            if: inputs.e2e == 'yes' && inputs.e2e_js == 'no'
+            run: |
+                mkdir -p public/build/admin public/build/shop 
+                echo "{}" > public/build/admin/manifest.json
+                echo "{}" > public/build/shop/manifest.json
+            shell: bash
+            working-directory: "${{ env.application_dir }}"
+
+        #####################################################################
+        # Set up Node.js                                                    #
+        #####################################################################
+
+        -   name: Setup Node
+            if: inputs.e2e_js == 'yes' && inputs.node_version != ''
+            uses: actions/setup-node@v3
+            with:
+                node-version: "${{ inputs.node_version }}"
+
         -   name: Install JS dependencies
+            if: inputs.e2e_js == 'yes' && inputs.node_version != ''
             run: yarn install
             shell: bash
             working-directory: "${{ env.application_dir }}"
 
-        -   name: Prepare test application database
+        -   name: Build JS assets
+            if: inputs.e2e_js == 'yes' && inputs.node_version != ''
+            run: yarn build
+            shell: bash
+            working-directory: "${{ env.application_dir }}"
+
+        #####################################################################
+        # Prepare the application                                           #
+        #####################################################################
+
+        -   name: Prepare application database (MariaDB/MySQL)
+            if: inputs.database != 'postgresql'
             run: |
-                bin/console doctrine:database:create -vvv
+                bin/console doctrine:database:create --if-not-exists -vvv
                 bin/console doctrine:migrations:migrate -n -vvv
             shell: bash
             working-directory: "${{ env.application_dir }}"
 
-        -   name: Prepare test application assets
+        -   name: Prepare application database (PostgreSQL)
+            if: inputs.database == 'postgresql'
             run: |
-                bin/console assets:install public -vvv
-                yarn build
+                bin/console doctrine:database:create --if-not-exists -vvv
+                bin/console doctrine:schema:up --force -vvv
+                bin/console doctrine:schema:validate
+                bin/console doctrine:migrations:sync-metadata-storage
             shell: bash
             working-directory: "${{ env.application_dir }}"
 
-        -   name: Prepare test application cache
+        -   name: Install assets
+            run: bin/console assets:install public -vvv
+            shell: bash
+            working-directory: "${{ env.application_dir }}"
+
+        -   name: Warm up cache
             run: bin/console cache:warmup -vvv
             shell: bash
             working-directory: "${{ env.application_dir }}"
 
-        -   name: Load fixtures in test application
+        -   name: Load fixtures
             run: bin/console sylius:fixtures:load -n
-            shell: bash
-            working-directory: "${{ env.application_dir }}"
-
-        -   name: Validate composer.json
-            run: composer validate --ansi --strict
-            shell: bash
-            working-directory: "${{ inputs.working-directory }}"
-
-        -   name: Validate database schema
-            run: bin/console doctrine:schema:validate
             shell: bash
             working-directory: "${{ env.application_dir }}"
 
