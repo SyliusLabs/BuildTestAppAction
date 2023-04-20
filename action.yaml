@@ -235,21 +235,10 @@ runs:
         # Prepare the application                                           #
         #####################################################################
 
-        -   name: Prepare application database (MariaDB/MySQL)
-            if: inputs.database != 'postgresql'
+        -   name: Prepare application database
             run: |
                 bin/console doctrine:database:create --if-not-exists -vvv
                 bin/console doctrine:migrations:migrate -n -vvv
-            shell: bash
-            working-directory: "${{ env.application_dir }}"
-
-        -   name: Prepare application database (PostgreSQL)
-            if: inputs.database == 'postgresql'
-            run: |
-                bin/console doctrine:database:create --if-not-exists -vvv
-                bin/console doctrine:schema:up --force -vvv
-                bin/console doctrine:schema:validate
-                bin/console doctrine:migrations:sync-metadata-storage
             shell: bash
             working-directory: "${{ env.application_dir }}"
 
