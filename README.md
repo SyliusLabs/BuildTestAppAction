@@ -7,6 +7,9 @@ The goal of this action is to reduce the repetitive part of our every Sylius Git
 Below you can find an example of a workflow file that uses this action. Keep in mind `actions/checkout@v2`
 action is required and must be run **before** `SyliusLabs/BuildTestAppAction` action.
 
+> **Note!** If you want to use this action with Sylius 1.12.7 or lower, please use version `2.0` of this action. Version `2.1` introduced
+> a support for fixed PostgreSQL migrations (available since Sylius 1.12.8), and will fail on older Sylius versions.
+
 ```yaml
 name: Example Workflow
 
@@ -36,7 +39,7 @@ jobs:
             -   uses: actions/checkout@v2
 
             -   name: Build application
-                uses: SyliusLabs/SyliusBuildTestAppAction@v2.0
+                uses: SyliusLabs/BuildTestAppAction@v2.1
                 with:
                     e2e: "yes"
                     database_version: ${{ matrix.mysql }}
