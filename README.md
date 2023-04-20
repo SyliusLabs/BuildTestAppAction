@@ -4,11 +4,11 @@ The goal of this action is to reduce the repetitive part of our every Sylius Git
 
 ## Usage
 
-Below you can find an example of a workflow file that uses this action. Keep in mind `actions/checkout@v2` and `shivammathur/setup-php@v2`
-action are required and must be run **before** `SyliusLabs/BuildTestAppAction` action.
+Below you can find an example of a workflow file that uses this action. Keep in mind `actions/checkout@v2`
+action is required and must be run **before** `SyliusLabs/BuildTestAppAction` action.
 
 ```yaml
-name: Sample Workflow
+name: Example Workflow
 
 on:
     push: ~
@@ -35,28 +35,34 @@ jobs:
         steps:
             -   uses: actions/checkout@v2
 
-            -   name: Setup PHP
-                uses: shivammathur/setup-php@v2
-                env:
-                    runner: self-hosted
+            -   name: Build application
+                uses: SyliusLabs/SyliusBuildTestAppAction@v2.0
                 with:
-                    php-version: "${{ matrix.php }}"
-                    extensions: intl
-                    tools: symfony
-                    coverage: none
-
-            -   name: Build test application
-                uses: SyliusLabs/BuildTestAppAction@<tag>       # <tag> is the version of the action you want to use, you can find the latest version on the releases page
-                with:
-                    sylius-version: "${{ matrix.sylius }}"      # Sylius version, required
-                    symfony-version: "${{ matrix.symfony }}"    # Symfony version, required
-                    mysql-version: "${{ matrix.mysql }}"        # MySQL version, required
-                    node-version: "${{ matrix.node }}"          # Node version, optional, default: 16.x
-                    environment: "test"                         # Environment, optional, default: test
-                    working-directory: "src/SomeSyliusPlugin"   # Working directory in which commands are run, optional, default: "." (root directory)
-                    plugin-build: "yes"                         # Tells whether we build an app or plugin, optional, default: no
+                    e2e: "yes"
+                    database_version: ${{ matrix.mysql }}
+                    php_version: ${{ matrix.php }}
+                    symfony_version: ${{ matrix.symfony }}
 
             -   name: Run Behat
                 run: |
                     vendor/bin/behat
 ```
+
+## Inputs
+
+| Name                 | Description                                                                                                | Default                                               | Required to be explicitly defined |
+|----------------------|------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|-----------------------------------|
+| `build_type`         | Type of the build. Possible values: `sylius` (Sylius/Sylius repo), `app` (Sylius-Standard based), `plugin` | `app`                                                 | no                                |
+| `cache_key`          | A cache key to be used                                                                                     |                                                       | No                                |
+| `cache_restore_key`  | A cache restore key to be used                                                                             |                                                       | No                                |
+| `e2e`                | Whether prepare the test application for e2e tests                                                         | `no`                                                  | No                                |
+| `e2e_js`             | Whether prepare the test application for e2e tests with JS                                                 | `no`                                                  | No                                |
+| `database`           | A database engine to be used. Possible values: `mysql`, `mariadb`, `postgresql`                            | `mysql`                                               | Yes                               |
+| `database_version`   | MySQL version to be used                                                                                   | `8.0`                                                 | No                                |
+| `php_version`        | PHP version to be used                                                                                     |                                                       | Yes                               |
+| `php_extensions`     | PHP extensions to be installed                                                                             | intl, gd, opcache, mysql, pdo_mysql, pgsql, pdo_pgsql | No                                |
+| `php_tools`          | PHP tools to be installed                                                                                  | symfony                                               | No                                |
+| `symfony_version`    | Symfony version to be used                                                                                 |                                                       | Yes                               |
+| `sylius_version`     | Sylius version to be used                                                                                  | by default no version restriction is applied          | no                                |
+| `sylius_integration` | Parameter only for our internal purposes, where we test Sylius in different configurations                 | empty                                                 | No                                |
+| `node_version`       | Node version to be used                                                                                    | `16.x`                                                | No                                |
