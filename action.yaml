@@ -38,7 +38,7 @@ inputs:
     legacy_postgresql_setup:
         required: false
         description: "Whether to use legacy PostgreSQL setup (before 1.13)"
-        default: "no"
+        default: "yes"
 
     # PHP
     php_version:
