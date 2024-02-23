@@ -78,6 +78,12 @@ inputs:
         description: "A Node.js version to be used"
         default: "16.x"
 
+    # Chrome (only when e2e_js is set to "yes")
+    chrome_version:
+        required: false
+        description: "Chrome version to be used"
+        default: "latest"
+
 runs:
     using: "composite"
 
@@ -189,7 +195,7 @@ runs:
         -   uses: browser-actions/setup-chrome@latest
             if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
             with:
-                chrome-version: latest
+                chrome-version: "${{ inputs.chrome_version }}"
 
         -   name: Run Chrome Headless
             if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
