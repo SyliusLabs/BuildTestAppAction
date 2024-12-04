@@ -8,6 +8,16 @@ inputs:
         description: "A build type to be used"
         default: "app" # available options are "sylius" (to tests Sylius itself), "app" (to test Sylius-based application, e.g. Sylius-Standard), "plugin" (to test Sylius plugin)
 
+    application_root_dir:
+        required: false
+        description: "The application directory to be used (useful for monorepos with isolation tests)"
+        default: "" # If empty directory will be resolved based on the build type
+
+    application_test_dir:
+        required: false
+        description: "The application test directory to be used (useful for monorepos with isolation tests)"
+        default: "" # If empty directory will be resolved based on the build type
+
     cache_key:
         required: false
         description: "A cache key to be used"
@@ -93,11 +103,28 @@ runs:
             shell: bash
             env:
                 BUILD_TYPE: ${{ inputs.build_type }}
+                APPLICATION_ROOT_DIR: ${{ inputs.application_root_dir }}
             run: |
-                if [ "$BUILD_TYPE" = "plugin" ]; then
-                    echo "application_dir=tests/Application" >> $GITHUB_ENV
+                if [ "$APPLICATION_ROOT_DIR" != "" ]; then
+                    echo "application_dir=${APPLICATION_ROOT_DIR}" >> $GITHUB_ENV
                 else
                     echo "application_dir=." >> $GITHUB_ENV
+                fi
+
+        -
+            name: Set test_dir environment variable
+            shell: bash
+            env:
+                BUILD_TYPE: ${{ inputs.build_type }}
+                APPLICATION_ROOT_DIR: ${{ env.application_dir }}
+                APPLICATION_TEST_DIR: ${{ inputs.application_test_dir }}
+            run: |
+                if [ "$APPLICATION_TEST_DIR" != "" ]; then
+                    echo "test_dir=${APPLICATION_TEST_DIR}" >> $GITHUB_ENV
+                elif [ "$BUILD_TYPE" = "plugin" ]; then
+                    echo "test_dir=tests/Application" >> $GITHUB_ENV
+                else
+                    echo "test_dir=${APPLICATION_ROOT_DIR}" >> $GITHUB_ENV
                 fi
 
         #####################################################################
@@ -155,11 +182,13 @@ runs:
                 composer global require --no-progress --no-scripts --no-plugins "symfony/flex:^1.17 || ^2.0"
                 composer config extra.symfony.require "${{ inputs.symfony_version }}"
             shell: bash
+            working-directory: "${{ env.application_dir }}"
 
         -   name: Restrict Sylius version
             if: inputs.sylius_version != '' && inputs.build_type != 'sylius'
             run: composer require "sylius/sylius:${{ inputs.sylius_version }}" --no-update --no-scripts --no-interaction
             shell: bash
+            working-directory: "${{ env.application_dir }}"
 
         -   name: Get Composer cache directory
             id: composer-cache
@@ -180,6 +209,7 @@ runs:
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
+            working-directory: "${{ env.application_dir }}"
 
         -   name: Install Sylius integration
             if: inputs.integration != '' && inputs.build_type != 'sylius'
@@ -187,6 +217,7 @@ runs:
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
+            working-directory: "${{ env.application_dir }}"
 
         #####################################################################
         # Prepare for end-to-end tests                                      #
@@ -203,11 +234,11 @@ runs:
                 export DISPLAY=:99
                 chrome --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --remote-debugging-port=9222 --disable-extensions --no-sandbox --enable-features=Metal --headless --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
             shell: bash
-            working-directory: "${{ inputs.working-directory }}"
+            working-directory: "${{ env.test_dir }}"
 
         -   name: Run webserver
             if: inputs.e2e == 'yes' || inputs.e2e_js == 'no'
-            run: symfony server:start --port=8080 --dir=${{ env.application_dir }}/public --daemon
+            run: symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon
             shell: bash
 
         -   name: Configure Encore for non-JS end-to-end tests
@@ -217,7 +248,7 @@ runs:
                 echo "{}" > public/build/admin/manifest.json
                 echo "{}" > public/build/shop/manifest.json
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         #####################################################################
         # Set up Node.js                                                    #
@@ -233,13 +264,13 @@ runs:
             if: inputs.e2e_js == 'yes' && inputs.node_version != ''
             run: yarn install
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         -   name: Build JS assets
             if: inputs.e2e_js == 'yes' && inputs.node_version != ''
             run: yarn build
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         #####################################################################
         # Prepare the application                                           #
@@ -251,7 +282,7 @@ runs:
                 bin/console doctrine:database:create --if-not-exists -vvv
                 bin/console doctrine:migrations:migrate -n -vvv
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         -   name: Prepare application database (legacy)
             if: inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'yes'
@@ -261,22 +292,22 @@ runs:
                 bin/console doctrine:schema:validate
                 bin/console doctrine:migrations:sync-metadata-storage
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         -   name: Install assets
             run: bin/console assets:install public -vvv
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         -   name: Warm up cache
             run: bin/console cache:warmup -vvv
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
         -   name: Load fixtures
             run: bin/console sylius:fixtures:load -n
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ env.test_dir }}"
 
 branding:
     icon: activity
