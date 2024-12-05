@@ -82,7 +82,7 @@ inputs:
     chrome_version:
         required: false
         description: "Chrome version to be used"
-        default: "latest"
+        default: "stable"
 
 runs:
     using: "composite"
