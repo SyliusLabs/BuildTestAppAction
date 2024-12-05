@@ -76,7 +76,7 @@ inputs:
     node_version:
         required: false
         description: "A Node.js version to be used"
-        default: "16.x"
+        default: "20.x"
 
     # Chrome (only when e2e_js is set to "yes")
     chrome_version:
