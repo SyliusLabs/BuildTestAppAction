@@ -168,7 +168,7 @@ runs:
 
         -   name: "Restore dependencies"
             if: inputs.cache_key != ''
-            uses: actions/cache@v3
+            uses: actions/cache@v4
             with:
                 path: ${{ steps.composer-cache.outputs.dir }}
                 key: ${{ inputs.cache_key }}
@@ -225,7 +225,7 @@ runs:
 
         -   name: Setup Node
             if: inputs.e2e_js == 'yes' && inputs.node_version != ''
-            uses: actions/setup-node@v3
+            uses: actions/setup-node@v4
             with:
                 node-version: "${{ inputs.node_version }}"
 
