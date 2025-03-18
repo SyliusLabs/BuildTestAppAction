@@ -176,6 +176,14 @@ runs:
             run: symfony server:ca:install
             shell: bash
 
+        -   name: Remove default Google Chrome installation
+            run: |
+                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
+                sudo dpkg --remove google-chrome-stable
+                sudo apt-get purge -y google-chrome-stable
+                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
+            shell: bash
+
         -   name: Restrict Symfony version
             run: |
                 composer global config --no-plugins allow-plugins.symfony/flex true
@@ -227,6 +235,7 @@ runs:
             if: inputs.e2e_js == 'yes'
             with:
                 chrome-version: "${{ inputs.chrome_version }}"
+                install-chromedriver: 'true'
 
         -   name: Run Chrome Headless
             if: inputs.e2e_js == 'yes'
