@@ -176,14 +176,6 @@ runs:
             run: symfony server:ca:install
             shell: bash
 
-        -   name: Remove default Google Chrome installation
-            run: |
-                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
-                sudo dpkg --remove google-chrome-stable
-                sudo apt-get purge -y google-chrome-stable
-                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
-            shell: bash
-
         -   name: Restrict Symfony version
             run: |
                 composer global config --no-plugins allow-plugins.symfony/flex true
@@ -230,6 +222,16 @@ runs:
         #####################################################################
         # Prepare for end-to-end tests                                      #
         #####################################################################
+
+        -   name: Remove default Google Chrome installation
+            if: inputs.e2e_js == 'yes'
+            run: |
+                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
+                sudo dpkg --remove google-chrome-stable chromedriver
+                sudo apt-get purge -y google-chrome-stable chromedriver
+                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
+                which chromedriver || echo "Google Chromedriver successfully removed"
+            shell: bash
 
         -   uses: browser-actions/setup-chrome@latest
             if: inputs.e2e_js == 'yes'
