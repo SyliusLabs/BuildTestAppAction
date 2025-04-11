@@ -223,10 +223,22 @@ runs:
         # Prepare for end-to-end tests                                      #
         #####################################################################
 
+        -   name: Remove default Google Chrome installation
+            if: inputs.e2e_js == 'yes'
+            run: |
+                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
+                sudo dpkg --remove google-chrome-stable
+                sudo apt-get purge -y google-chrome-stable
+                sudo rm -f /usr/bin/google-chrome /usr/bin/chromedriver
+                which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
+                which chromedriver || echo "Google Chromedriver successfully removed"
+            shell: bash
+
         -   uses: browser-actions/setup-chrome@latest
             if: inputs.e2e_js == 'yes'
             with:
                 chrome-version: "${{ inputs.chrome_version }}"
+                install-chromedriver: 'true'
 
         -   name: Run Chrome Headless
             if: inputs.e2e_js == 'yes'
