@@ -244,7 +244,7 @@ runs:
             if: inputs.e2e_js == 'yes'
             run: |
                 export DISPLAY=:99
-                chrome --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --remote-debugging-port=9222 --disable-extensions --no-sandbox --enable-features=Metal --headless --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
+                chrome --enable-automation --disable-background-networking --disable-password-manager-leak-detection --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --remote-debugging-port=9222 --disable-extensions --no-sandbox --enable-features=Metal --headless --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
