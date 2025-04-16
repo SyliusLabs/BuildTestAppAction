@@ -98,8 +98,7 @@ runs:
     using: "composite"
 
     steps:
-        -
-            name: Set application_dir environment variable
+        -   name: Set application_dir environment variable
             shell: bash
             env:
                 BUILD_TYPE: ${{ inputs.build_type }}
@@ -111,8 +110,7 @@ runs:
                     echo "application_dir=." >> $GITHUB_ENV
                 fi
 
-        -
-            name: Set test_dir environment variable
+        -   name: Set test_dir environment variable
             shell: bash
             env:
                 BUILD_TYPE: ${{ inputs.build_type }}
@@ -164,6 +162,25 @@ runs:
             uses: shivammathur/setup-php@v2
             with:
                 php-version: "${{ inputs.php_version }}"
+                ini-values: |
+                    date.timezone=Europe/Warsaw
+                    display_errors=Off
+                    log_errors=On
+                    error_reporting=E_ALL
+                    memory_limit=4096M
+                    max_execution_time=60
+                    zend.assertions=-1
+                    realpath_cache_size=4096K
+                    realpath_cache_ttl=600
+                    opcache.enable=1
+                    opcache.enable_cli=0
+                    opcache.memory_consumption=512
+                    opcache.max_accelerated_files=65407
+                    opcache.interned_strings_buffer=8
+                    opcache.validate_timestamps=0
+                    opcache.save_comments=1
+                    opcache.fast_shutdown=0
+                    output_buffering=65535
                 extensions: "${{ inputs.php_extensions }}"
                 tools: "${{ inputs.php_tools }}"
                 coverage: "${{ inputs.php_coverage }}"
@@ -212,8 +229,8 @@ runs:
             working-directory: "${{ env.application_dir }}"
 
         -   name: Install Sylius integration
-            if: inputs.integration != '' && inputs.build_type != 'sylius'
-            run: composer integration ${{ inputs.integration }}
+            if: inputs.sylius_integration != '' && inputs.build_type != 'sylius'
+            run: composer integration ${{ inputs.sylius_integration }}
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
