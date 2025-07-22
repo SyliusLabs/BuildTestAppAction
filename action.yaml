@@ -37,6 +37,11 @@ inputs:
         description: "Whether prepare the test application for e2e tests with JS"
         default: "no"
 
+    console_path:
+        required: false
+        description: "Relative path to Symfony's console binary (overrides auto-detection)"
+        default: ""
+
     # Database
     database:
         required: true
@@ -98,6 +103,17 @@ runs:
     using: "composite"
 
     steps:
+        -   name: Determine which console to use
+            shell: bash
+            run: |
+                if [ -n "${{ inputs.console_path }}" ]; then
+                   echo "CONSOLE=${{ inputs.console_path }}" >> $GITHUB_ENV
+                elif [ -f "${{ env.test_dir }}/vendor/bin/console" ]; then
+                   echo "CONSOLE=vendor/bin/console" >> $GITHUB_ENV
+                else
+                   echo "CONSOLE=bin/console" >> $GITHUB_ENV
+                fi
+
         -
             name: Set application_dir environment variable
             shell: bash
@@ -291,33 +307,33 @@ runs:
         -   name: Prepare application database
             if: inputs.database != 'postgresql' || (inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'no')
             run: |
-                bin/console doctrine:database:create --if-not-exists -vvv
-                bin/console doctrine:migrations:migrate -n -vvv
+                $CONSOLE doctrine:database:create --if-not-exists -vvv
+                $CONSOLE doctrine:migrations:migrate -n -vvv
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
         -   name: Prepare application database (legacy)
             if: inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'yes'
             run: |
-                bin/console doctrine:database:create --if-not-exists -vvv
-                bin/console doctrine:schema:up --force -vvv
-                bin/console doctrine:schema:validate
-                bin/console doctrine:migrations:sync-metadata-storage
+                $CONSOLE doctrine:database:create --if-not-exists -vvv
+                $CONSOLE doctrine:schema:up --force -vvv
+                $CONSOLE doctrine:schema:validate
+                $CONSOLE doctrine:migrations:sync-metadata-storage
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
         -   name: Install assets
-            run: bin/console assets:install public -vvv
+            run: $CONSOLE assets:install public -vvv
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
         -   name: Warm up cache
-            run: bin/console cache:warmup -vvv
+            run: $CONSOLE cache:warmup -vvv
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
         -   name: Load fixtures
-            run: bin/console sylius:fixtures:load -n
+            run: $CONSOLE sylius:fixtures:load -n
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
