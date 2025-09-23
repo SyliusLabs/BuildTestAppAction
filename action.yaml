@@ -71,6 +71,10 @@ inputs:
         required: false
         description: "PHP coverage"
         default: "none"
+    composer_ignore_platform_reqs:
+        required: false
+        description: "Whether to add --ignore-platform-reqs to composer install"
+        default: "no"
 
     # Symfony
     symfony_version:
@@ -221,7 +225,12 @@ runs:
                     ${{ inputs.cache_restore_key }}
 
         -   name: Install PHP dependencies
-            run: composer install --no-interaction
+            run: |
+                if [ "${{ inputs.composer_ignore_platform_reqs }}" = "yes" ]; then
+                    composer install --no-interaction --ignore-platform-reqs
+                else
+                    composer install --no-interaction
+                fi
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
