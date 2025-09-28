@@ -185,6 +185,11 @@ runs:
                 extensions: "${{ inputs.php_extensions }}"
                 tools: "${{ inputs.php_tools }}"
                 coverage: "${{ inputs.php_coverage }}"
+                ini-values: >
+                    date.timezone=Europe/Warsaw,
+                    error_reporting=E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED,
+                    display_errors=1,
+                    log_errors=1
 
         -   name: Output PHP version for Symfony CLI
             run: php -v | head -n 1 | awk '{ print $2 }' > .php-version
