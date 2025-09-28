@@ -118,8 +118,7 @@ runs:
                    echo "CONSOLE=bin/console" >> $GITHUB_ENV
                 fi
 
-        -
-            name: Set application_dir environment variable
+        -   name: Set application_dir environment variable
             shell: bash
             env:
                 BUILD_TYPE: ${{ inputs.build_type }}
@@ -131,8 +130,7 @@ runs:
                     echo "application_dir=." >> $GITHUB_ENV
                 fi
 
-        -
-            name: Set test_dir environment variable
+        -   name: Set test_dir environment variable
             shell: bash
             env:
                 BUILD_TYPE: ${{ inputs.build_type }}
@@ -252,8 +250,8 @@ runs:
             if: inputs.e2e_js == 'yes'
             run: |
                 which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
-                sudo dpkg --remove google-chrome-stable
-                sudo apt-get purge -y google-chrome-stable
+                sudo dpkg --remove google-chrome-stable || true
+                sudo apt-get purge -y google-chrome-stable || true
                 sudo rm -f /usr/bin/google-chrome /usr/bin/chromedriver
                 which google-chrome && google-chrome --version || echo "Google Chrome successfully removed"
                 which chromedriver || echo "Google Chromedriver successfully removed"
@@ -265,18 +263,35 @@ runs:
                 chrome-version: "${{ inputs.chrome_version }}"
                 install-chromedriver: 'true'
 
-        -   name: Run Chrome Headless
+        -   name: Start Chromedriver (WebDriver on 9515)
             if: inputs.e2e_js == 'yes'
             run: |
-                export DISPLAY=:99
-                chrome --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --remote-debugging-port=9222 --disable-extensions --no-sandbox --enable-features=Metal --headless --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
+                mkdir -p "${{ env.test_dir }}/etc/build"
+                chromedriver --port=9515 --url-base=/wd/hub > "${{ env.test_dir }}/etc/build/chromedriver.log" 2>&1 &
             shell: bash
-            working-directory: "${{ env.test_dir }}"
 
-        -   name: Run webserver
-            if: inputs.e2e == 'yes' || inputs.e2e_js == 'no'
-            run: symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon
+        -   name: Run webserver (HTTP, no TLS)
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            run: symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon --no-tls --allow-http
             shell: bash
+
+        -   name: Wait for webserver
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            shell: bash
+            run: |
+                for i in {1..120}; do
+                  curl -fsS http://127.0.0.1:8080/ >/dev/null && break
+                  sleep 0.5
+                done
+
+        -   name: Wait for chromedriver
+            if: inputs.e2e_js == 'yes'
+            shell: bash
+            run: |
+                for i in {1..120}; do
+                  curl -fsS http://127.0.0.1:9515/wd/hub/status >/dev/null && break
+                  sleep 0.5
+                done
 
         -   name: Configure Encore for non-JS end-to-end tests
             if: inputs.e2e == 'yes' && inputs.e2e_js == 'no'
