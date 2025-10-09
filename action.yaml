@@ -103,6 +103,42 @@ inputs:
         description: "Chrome version to be used"
         default: "stable"
 
+    # PHP-FPM (only when e2e or e2e_js is set to "yes")
+    php_fpm_max_children:
+        required: false
+        description: "Maximum number of PHP-FPM worker processes for Symfony Local Server (default 2 causes 502 errors with Behat/Chromedriver due to parallel asset loading)"
+        default: "50"
+    php_fpm_start_servers:
+        required: false
+        description: "Number of PHP-FPM worker processes to start"
+        default: "10"
+    php_fpm_min_spare_servers:
+        required: false
+        description: "Minimum number of idle PHP-FPM worker processes"
+        default: "5"
+    php_fpm_max_spare_servers:
+        required: false
+        description: "Maximum number of idle PHP-FPM worker processes"
+        default: "20"
+    php_fpm_max_requests:
+        required: false
+        description: "Number of requests each PHP-FPM worker handles before recycling (0 = unlimited)"
+        default: "0"
+
+    # OPcache (only when e2e or e2e_js is set to "yes")
+    opcache_enable:
+        required: false
+        description: "Enable OPcache for Symfony Local Server (disable if tests use dynamically generated code)"
+        default: "no"
+    opcache_validate_timestamps:
+        required: false
+        description: "Check for file changes on every request (set to 'yes' for development/testing)"
+        default: "yes"
+    opcache_revalidate_freq:
+        required: false
+        description: "How often to check timestamps in seconds (0 = always check)"
+        default: "0"
+
 runs:
     using: "composite"
 
@@ -272,6 +308,37 @@ runs:
                 chrome --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --remote-debugging-port=9222 --disable-extensions --no-sandbox --enable-features=Metal --headless --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1 > /dev/null 2>&1 &
             shell: bash
             working-directory: "${{ env.test_dir }}"
+
+        -   name: Configure PHP for Symfony Local Server
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            shell: bash
+            working-directory: "${{ env.application_dir }}"
+            run: |
+                echo "=== Configuring PHP for Symfony Local Server ==="
+
+                # Symfony CLI reads php.ini from the project root directory
+                # This allows us to disable OPcache to prevent segfaults
+                # (OPcache file cache + concurrent requests = known PHP bug causing SIGSEGV)
+
+                OPCACHE_ENABLE=$([[ "${{ inputs.opcache_enable }}" == "yes" ]] && echo "1" || echo "0")
+                OPCACHE_VALIDATE=$([[ "${{ inputs.opcache_validate_timestamps }}" == "yes" ]] && echo "1" || echo "0")
+
+                cat > php.ini << 'PHPINI'
+                ; OPcache configuration for e2e tests
+                ; Disabled by default to prevent segfaults in concurrent tests
+                opcache.enable=${{ inputs.opcache_enable == 'yes' && '1' || '0' }}
+                opcache.enable_cli=0
+                opcache.validate_timestamps=${{ inputs.opcache_validate_timestamps == 'yes' && '1' || '0' }}
+                opcache.revalidate_freq=${{ inputs.opcache_revalidate_freq }}
+                PHPINI
+
+                echo "PHP configured at $(pwd)/php.ini"
+                echo "  opcache.enable = ${{ inputs.opcache_enable == 'yes' && '1' || '0' }}"
+                echo "  opcache.validate_timestamps = ${{ inputs.opcache_validate_timestamps == 'yes' && '1' || '0' }}"
+                echo "  opcache.revalidate_freq = ${{ inputs.opcache_revalidate_freq }}"
+                echo ""
+                echo "Note: PHP-FPM pool settings (pm.max_children, etc.) must be configured"
+                echo "      in the workflow after server starts, using SIGUSR2 reload."
 
         -   name: Run webserver
             if: inputs.e2e == 'yes' || inputs.e2e_js == 'no'
