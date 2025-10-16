@@ -71,5 +71,4 @@ jobs:
 | `sylius_integration`   | Internal usage: run Sylius with a specific integration.                           | *(empty)*                                               | No                                |
 | `node_version`         | Node.js version to install (used when `e2e_js: yes`).                             | `20.x`                                                  | No                                |
 | `chrome_version`       | Google Chrome version to install (for JS e2e tests).                              | `stable`                                                | No                                |
-| `opcache_enable`       | Enable OPcache.                                                                   | `yes`                                                   | No                                |
 | `opcache_enable`       | Control OPcache (`yes`=enable with test-optimized settings, `no`=disable).        | *(empty)* – use system defaults                         | No                                |
