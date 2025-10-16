@@ -4,28 +4,27 @@ description: "Builds a Sylius plugin's test application with the given PHP, Syli
 inputs:
     # General
     build_type:
-        required: true
-        description: "A build type to be used"
+        required: false
+        description: "Build type to be used"
         default: "app" # available options are "sylius" (to tests Sylius itself), "app" (to test Sylius-based application, e.g. Sylius-Standard), "plugin" (to test Sylius plugin)
 
     application_root_dir:
         required: false
-        description: "The application directory to be used (useful for monorepos with isolation tests)"
-        default: "" # If empty directory will be resolved based on the build type
-
+        description: "Working directory for composer"
+        default: "."
     application_test_dir:
         required: false
         description: "The application test directory to be used (useful for monorepos with isolation tests)"
-        default: "" # If empty directory will be resolved based on the build type
+        default: "" # If empty directory will be resolved based on the build type and application_root_dir
 
     cache_key:
         required: false
-        description: "A cache key to be used"
+        description: "Cache key to be used"
         default: "" # If empty no cache is used
 
     cache_restore_key:
         required: false
-        description: "A cache restore key to be used"
+        description: "Cache restore key to be used"
         default: "" # If empty no cache is used
 
     e2e:
@@ -45,20 +44,16 @@ inputs:
     # Database
     database:
         required: true
-        description: "A database engine to be used"
+        description: "Database engine to be used"
         default: "mysql" # available options are "mysql", "mariadb", "postgresql"
     database_version:
         required: true
-        description: "A database version to be used"
-    legacy_postgresql_setup:
-        required: false
-        description: "Whether to use legacy PostgreSQL setup (before 1.13)"
-        default: "yes"
+        description: "Database engine version to be used"
 
     # PHP
     php_version:
         required: true
-        description: "A PHP version to be used"
+        description: "PHP version to be used"
     php_extensions:
         required: true
         description: "PHP extensions to be installed"
@@ -79,22 +74,22 @@ inputs:
     # Symfony
     symfony_version:
         required: true
-        description: "A Symfony version to be used"
+        description: "Symfony version to be used"
 
     # Sylius
     sylius_version:
         required: false
-        description: "A Sylius version to be used"
+        description: "Sylius version to be used"
         default: "" # If empty no Sylius restriction is applied, also it allows to use this action while testing Sylius itself
     sylius_integration:
         required: false
-        description: "A Sylius integration to be used"
+        description: "Sylius integration to be used"
         default: "" # If empty no Sylius integration is applied
 
     # Node.js (only when e2e_js is set to "yes")
     node_version:
         required: false
-        description: "A Node.js version to be used"
+        description: "Node.js version to be used"
         default: "20.x"
 
     # Chrome (only when e2e_js is set to "yes")
@@ -119,24 +114,11 @@ runs:
                 fi
 
         -
-            name: Set application_dir environment variable
-            shell: bash
-            env:
-                BUILD_TYPE: ${{ inputs.build_type }}
-                APPLICATION_ROOT_DIR: ${{ inputs.application_root_dir }}
-            run: |
-                if [ "$APPLICATION_ROOT_DIR" != "" ]; then
-                    echo "application_dir=${APPLICATION_ROOT_DIR}" >> $GITHUB_ENV
-                else
-                    echo "application_dir=." >> $GITHUB_ENV
-                fi
-
-        -
             name: Set test_dir environment variable
             shell: bash
             env:
                 BUILD_TYPE: ${{ inputs.build_type }}
-                APPLICATION_ROOT_DIR: ${{ env.application_dir }}
+                APPLICATION_ROOT_DIR: ${{ inputs.application_root_dir }}
                 APPLICATION_TEST_DIR: ${{ inputs.application_test_dir }}
             run: |
                 if [ "$APPLICATION_TEST_DIR" != "" ]; then
@@ -202,13 +184,13 @@ runs:
                 composer global require --no-progress --no-scripts --no-plugins "symfony/flex:^1.17 || ^2.0"
                 composer config extra.symfony.require "${{ inputs.symfony_version }}"
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ inputs.application_root_dir }}"
 
         -   name: Restrict Sylius version
             if: inputs.sylius_version != '' && inputs.build_type != 'sylius'
             run: composer require "sylius/sylius:${{ inputs.sylius_version }}" --no-update --no-scripts --no-interaction
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ inputs.application_root_dir }}"
 
         -   name: Get Composer cache directory
             id: composer-cache
@@ -234,15 +216,15 @@ runs:
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ inputs.application_root_dir }}"
 
         -   name: Install Sylius integration
-            if: inputs.integration != '' && inputs.build_type != 'sylius'
-            run: composer integration ${{ inputs.integration }}
+            if: inputs.sylius_integration != '' && inputs.build_type != 'sylius'
+            run: composer integration ${{ inputs.sylius_integration }}
             env:
                 COMPOSER_ROOT_VERSION: dev-main
             shell: bash
-            working-directory: "${{ env.application_dir }}"
+            working-directory: "${{ inputs.application_root_dir }}"
 
         #####################################################################
         # Prepare for end-to-end tests                                      #
@@ -314,20 +296,9 @@ runs:
         #####################################################################
 
         -   name: Prepare application database
-            if: inputs.database != 'postgresql' || (inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'no')
             run: |
                 $CONSOLE doctrine:database:create --if-not-exists -vvv
                 $CONSOLE doctrine:migrations:migrate -n -vvv
-            shell: bash
-            working-directory: "${{ env.test_dir }}"
-
-        -   name: Prepare application database (legacy)
-            if: inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'yes'
-            run: |
-                $CONSOLE doctrine:database:create --if-not-exists -vvv
-                $CONSOLE doctrine:schema:up --force -vvv
-                $CONSOLE doctrine:schema:validate
-                $CONSOLE doctrine:migrations:sync-metadata-storage
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
