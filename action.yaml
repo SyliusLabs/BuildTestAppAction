@@ -98,6 +98,11 @@ inputs:
         description: "Chrome version to be used"
         default: "stable"
 
+    opcache_enable:
+        required: false
+        description: "Control OPcache configuration (yes=enable with optimal settings, no=disable, empty=use system defaults)"
+        default: ""
+
 runs:
     using: "composite"
 
@@ -163,12 +168,23 @@ runs:
         #####################################################################
 
         -   name: Setup PHP
+            if: inputs.opcache_enable == ''
             uses: shivammathur/setup-php@v2
             with:
                 php-version: "${{ inputs.php_version }}"
                 extensions: "${{ inputs.php_extensions }}"
                 tools: "${{ inputs.php_tools }}"
                 coverage: "${{ inputs.php_coverage }}"
+
+        -   name: Setup PHP with OPcache configuration
+            if: inputs.opcache_enable != ''
+            uses: shivammathur/setup-php@v2
+            with:
+                php-version: "${{ inputs.php_version }}"
+                extensions: "${{ inputs.php_extensions }}"
+                tools: "${{ inputs.php_tools }}"
+                coverage: "${{ inputs.php_coverage }}"
+                ini-values: ${{ inputs.opcache_enable == 'yes' && 'opcache.enable=1, opcache.enable_cli=0, opcache.validate_timestamps=1, opcache.revalidate_freq=0' || 'opcache.enable=0, opcache.enable_cli=0' }}
 
         -   name: Output PHP version for Symfony CLI
             run: php -v | head -n 1 | awk '{ print $2 }' > .php-version
