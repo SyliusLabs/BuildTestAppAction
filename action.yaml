@@ -49,10 +49,6 @@ inputs:
     database_version:
         required: true
         description: "Database engine version to be used"
-    legacy_postgresql_setup:
-        required: false
-        description: "Whether to use legacy PostgreSQL setup (before Sylius 1.13)"
-        default: "yes"
 
     # PHP
     php_version:
@@ -300,20 +296,9 @@ runs:
         #####################################################################
 
         -   name: Prepare application database
-            if: inputs.database != 'postgresql' || (inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'no')
             run: |
                 $CONSOLE doctrine:database:create --if-not-exists -vvv
                 $CONSOLE doctrine:migrations:migrate -n -vvv
-            shell: bash
-            working-directory: "${{ env.test_dir }}"
-
-        -   name: Prepare application database (legacy)
-            if: inputs.database == 'postgresql' && inputs.legacy_postgresql_setup == 'yes'
-            run: |
-                $CONSOLE doctrine:database:create --if-not-exists -vvv
-                $CONSOLE doctrine:schema:up --force -vvv
-                $CONSOLE doctrine:schema:validate
-                $CONSOLE doctrine:migrations:sync-metadata-storage
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
