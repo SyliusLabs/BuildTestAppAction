@@ -190,10 +190,6 @@ runs:
             run: php -v | head -n 1 | awk '{ print $2 }' > .php-version
             shell: bash
 
-        -   name: Install certificates
-            run: symfony server:ca:install
-            shell: bash
-
         -   name: Restrict Symfony version
             run: |
                 composer global config --no-plugins allow-plugins.symfony/flex true
@@ -273,7 +269,7 @@ runs:
 
         -   name: Run webserver
             if: inputs.e2e == 'yes' || inputs.e2e_js == 'no'
-            run: symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon
+            run: symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon --no-tls
             shell: bash
 
         -   name: Configure Encore for non-JS end-to-end tests
