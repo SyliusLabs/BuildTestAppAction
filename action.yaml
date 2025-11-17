@@ -41,6 +41,11 @@ inputs:
         description: "Relative path to Symfony's console binary (overrides auto-detection)"
         default: ""
 
+    public_dir:
+        required: false
+        description: "Public directory path (defaults to test_dir/public if not specified)"
+        default: ""
+
     # Database
     database:
         required: true
@@ -268,8 +273,13 @@ runs:
             working-directory: "${{ env.test_dir }}"
 
         -   name: Run webserver
-            if: inputs.e2e == 'yes' || inputs.e2e_js == 'no'
-            run: symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon --no-tls
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            run: |
+                if [ -n "${{ inputs.public_dir }}" ]; then
+                  symfony server:start --port=8080 --dir=${{ inputs.public_dir }} --daemon --no-tls
+                else
+                  symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon --no-tls
+                fi
             shell: bash
 
         -   name: Configure Encore for non-JS end-to-end tests
