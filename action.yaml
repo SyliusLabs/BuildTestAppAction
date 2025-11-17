@@ -114,9 +114,13 @@ runs:
     steps:
         -   name: Determine which console to use
             shell: bash
+            working-directory: "${{ inputs.application_root_dir }}"
             run: |
                 if [ -n "${{ inputs.console_path }}" ]; then
                    echo "CONSOLE=${{ inputs.console_path }}" >> $GITHUB_ENV
+                elif [ -f "vendor/bin/console" ]; then
+                   # Use absolute path to vendor/bin/console proxy
+                   echo "CONSOLE=$GITHUB_WORKSPACE/${{ inputs.application_root_dir }}/vendor/bin/console" >> $GITHUB_ENV
                 elif [ -f "${{ env.test_dir }}/vendor/bin/console" ]; then
                    echo "CONSOLE=vendor/bin/console" >> $GITHUB_ENV
                 else
