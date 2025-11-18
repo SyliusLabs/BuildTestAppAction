@@ -15,7 +15,7 @@ inputs:
     application_test_dir:
         required: false
         description: "The application test directory to be used (useful for monorepos with isolation tests)"
-        default: "" # If empty directory will be resolved based on the build type and application_root_dir
+        default: "" # If empty: plugins use vendor/sylius/test-application, apps use application_root_dir
 
     cache_key:
         required: false
@@ -123,7 +123,7 @@ runs:
                 if [ "$APPLICATION_TEST_DIR" != "" ]; then
                     echo "test_dir=${APPLICATION_TEST_DIR}" >> $GITHUB_ENV
                 elif [ "$BUILD_TYPE" = "plugin" ]; then
-                    echo "test_dir=tests/Application" >> $GITHUB_ENV
+                    echo "test_dir=vendor/sylius/test-application" >> $GITHUB_ENV
                 else
                     echo "test_dir=${APPLICATION_ROOT_DIR}" >> $GITHUB_ENV
                 fi
