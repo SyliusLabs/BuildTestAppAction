@@ -278,6 +278,11 @@ runs:
                 chrome-version: "${{ inputs.chrome_version }}"
                 install-chromedriver: 'true'
 
+        -   name: Install Symfony certificates
+            if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
+            run: symfony server:ca:install
+            shell: bash
+
         -   name: Run Chrome Headless
             if: inputs.e2e_js == 'yes'
             run: |
@@ -289,9 +294,9 @@ runs:
             if: inputs.e2e == 'yes' || inputs.e2e_js == 'yes'
             run: |
                 if [ -n "${{ inputs.public_dir }}" ]; then
-                  symfony server:start --port=8080 --dir=${{ inputs.public_dir }} --daemon --no-tls
+                  symfony server:start --port=8080 --dir=${{ inputs.public_dir }} --daemon
                 else
-                  symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon --no-tls
+                  symfony server:start --port=8080 --dir=${{ env.test_dir }}/public --daemon
                 fi
             shell: bash
 
