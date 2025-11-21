@@ -74,6 +74,10 @@ inputs:
         required: false
         description: "Set minimum-stability in composer.json (e.g., 'stable', 'RC', 'beta', 'alpha', 'dev')"
         default: ""
+    composer_prefer_stable:
+        required: false
+        description: "Set prefer-stable in composer.json ('yes' or 'no')"
+        default: ""
 
     # Symfony
     symfony_version:
@@ -211,6 +215,12 @@ runs:
         -   name: Set minimum-stability
             if: inputs.composer_minimum_stability != ''
             run: composer config minimum-stability "${{ inputs.composer_minimum_stability }}"
+            shell: bash
+            working-directory: "${{ inputs.application_root_dir }}"
+
+        -   name: Set prefer-stable
+            if: inputs.composer_prefer_stable != ''
+            run: composer config prefer-stable "${{ inputs.composer_prefer_stable == 'yes' && 'true' || 'false' }}"
             shell: bash
             working-directory: "${{ inputs.application_root_dir }}"
 
