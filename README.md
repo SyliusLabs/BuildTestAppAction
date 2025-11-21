@@ -60,7 +60,7 @@ jobs:
 | `cache_restore_key`          | A cache restore key to be used.                                                        | *(empty)*                                               | No                                |
 | `e2e`                        | Whether to prepare the test application for end-to-end tests.                          | `no`                                                    | No                                |
 | `e2e_js`                     | Whether to prepare the test application for JS-based end-to-end tests.                 | `no`                                                    | No                                |
-| `database`                   | Database engine to use. One of: `mysql`, `mariadb`, `postgresql`.                      | `mysql`                                                 | Yes                               |
+| `database`                   | Database engine to use. One of: `mysql`, `mariadb`, `postgres` (or `postgresql` - deprecated). | `mysql`                                                 | Yes                               |
 | `database_version`           | Version of the database to be used.                                                    | `8.0` (MySQL)                                           | No                                |
 | `php_version`                | PHP version to be used.                                                                | *(none)*                                                | Yes                               |
 | `php_extensions`             | List of PHP extensions to install.                                                     | `intl, gd, opcache, mysql, pdo_mysql, pgsql, pdo_pgsql` | No                                |
