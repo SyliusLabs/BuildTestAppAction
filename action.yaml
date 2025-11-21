@@ -45,7 +45,7 @@ inputs:
     database:
         required: true
         description: "Database engine to be used"
-        default: "mysql" # available options are "mysql", "mariadb", "postgresql"
+        default: "mysql" # available options are "mysql", "mariadb", "postgresql" (deprecated, use "postgres"), "postgres"
     database_version:
         required: true
         description: "Database engine version to be used"
@@ -164,8 +164,13 @@ runs:
                 mariadb version: "${{ inputs.database_version }}"
                 mysql root password: "root"
 
-        -   name: Setup PostgreSQL
+        -   name: Warn about postgresql deprecation
             if: inputs.database == 'postgresql'
+            run: echo "::warning::Using 'postgresql' is deprecated, use 'postgres' instead"
+            shell: bash
+
+        -   name: Setup PostgreSQL
+            if: inputs.database == 'postgresql' || inputs.database == 'postgres'
             uses: harmon758/postgresql-action@v1
             with:
                 postgresql version: "${{ inputs.database_version }}"
