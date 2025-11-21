@@ -70,6 +70,10 @@ inputs:
         required: false
         description: "Whether to add --ignore-platform-reqs to composer install"
         default: "no"
+    composer_minimum_stability:
+        required: false
+        description: "Set minimum-stability in composer.json (e.g., 'stable', 'RC', 'beta', 'alpha', 'dev')"
+        default: ""
 
     # Symfony
     symfony_version:
@@ -201,6 +205,12 @@ runs:
         -   name: Restrict Sylius version
             if: inputs.sylius_version != '' && inputs.build_type != 'sylius'
             run: composer require "sylius/sylius:${{ inputs.sylius_version }}" --no-update --no-scripts --no-interaction
+            shell: bash
+            working-directory: "${{ inputs.application_root_dir }}"
+
+        -   name: Set minimum-stability
+            if: inputs.composer_minimum_stability != ''
+            run: composer config minimum-stability "${{ inputs.composer_minimum_stability }}"
             shell: bash
             working-directory: "${{ inputs.application_root_dir }}"
 
