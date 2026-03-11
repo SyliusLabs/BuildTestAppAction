@@ -446,7 +446,7 @@ runs:
             run: |
                 $CONSOLE doctrine:database:create --if-not-exists -vvv
                 if [ "${{ inputs.database_setup }}" = "schema" ]; then
-                    $CONSOLE doctrine:schema:create -vvv
+                    $CONSOLE doctrine:schema:update --force -vvv
                 else
                     $CONSOLE doctrine:migrations:migrate -n -vvv
                 fi
