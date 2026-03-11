@@ -266,6 +266,8 @@ runs:
 
         -   name: Setup PHP
             uses: shivammathur/setup-php@v2
+            env:
+                FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
             with:
                 php-version: "${{ inputs.php_version }}"
                 extensions: "${{ inputs.php_extensions }}"
