@@ -108,6 +108,11 @@ inputs:
         description: "Whether to load Sylius fixtures"
         default: "yes"
 
+    database_setup:
+        required: false
+        description: "Database setup strategy: 'migrations' runs doctrine:migrations:migrate, 'schema' runs doctrine:schema:create (useful for projects without migrations)"
+        default: "migrations"
+
     opcache_enable:
         required: false
         description: "Control OPcache configuration (yes=enable with optimal settings, no=disable, empty=use system defaults)"
@@ -440,7 +445,11 @@ runs:
         -   name: Prepare application database
             run: |
                 $CONSOLE doctrine:database:create --if-not-exists -vvv
-                $CONSOLE doctrine:migrations:migrate -n -vvv
+                if [ "${{ inputs.database_setup }}" = "schema" ]; then
+                    $CONSOLE doctrine:schema:create -vvv
+                else
+                    $CONSOLE doctrine:migrations:migrate -n -vvv
+                fi
             shell: bash
             working-directory: "${{ env.test_dir }}"
 
