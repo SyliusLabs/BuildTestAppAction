@@ -160,7 +160,7 @@ runs:
                     while [[ ! "$DB_SERVER_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; do
                         DB_SERVER_VERSION="$DB_SERVER_VERSION.0"
                     done
-                    DB_SERVER_VERSION="mariadb-$DB_SERVER_VERSION"
+                    DB_SERVER_VERSION="$DB_SERVER_VERSION-MariaDB"
                 fi
 
                 echo "type=$DB_TYPE" >> $GITHUB_OUTPUT
